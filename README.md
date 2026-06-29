@@ -1,10 +1,17 @@
-# cursor-agent CentOS 7 兼容工具
+# cursor-agent CentOS 7 Compatibility Tool
 
-解决 cursor-agent 在 CentOS 7 上因 glibc 版本过低而无法运行的问题。
+[English](README.md) | [中文](README.zh-CN.md)
 
-## 问题描述
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Docker](https://img.shields.io/badge/Docker-Required-blue.svg)](https://www.docker.com/)
+[![CentOS 7](https://img.shields.io/badge/CentOS-7-green.svg)](https://www.centos.org/)
+[![cursor-agent](https://img.shields.io/badge/cursor--agent-compatible-orange.svg)](https://www.cursor.com/)
 
-cursor-agent 依赖的 Node.js 二进制文件需要 **glibc 2.27+**，但 CentOS 7 系统最高只支持 **glibc 2.17**，导致运行时报错：
+Solves the issue where cursor-agent cannot run on CentOS 7 due to low glibc version.
+
+## Problem Description
+
+cursor-agent depends on a Node.js binary that requires **glibc 2.27+**, but CentOS 7 only supports up to **glibc 2.17**, causing runtime errors:
 
 ```
 /lib64/libc.so.6: version `GLIBC_2.27' not found
@@ -12,51 +19,51 @@ cursor-agent 依赖的 Node.js 二进制文件需要 **glibc 2.27+**，但 CentO
 /lib64/libstdc++.so.6: version `GLIBCXX_3.4.21' not found
 ```
 
-## 解决方案
+## Solution
 
-使用 Docker 容器运行 cursor-agent，利用 Ubuntu 20.04 镜像（glibc 2.31）提供兼容的运行环境。
+Run cursor-agent inside a Docker container using an Ubuntu 20.04 image (glibc 2.31) to provide a compatible runtime environment.
 
-## 安装要求
+## Requirements
 
-- CentOS 7 系统
-- Docker 已安装并运行
-- cursor-agent 已安装（通常在 `~/.local/share/cursor-agent/`）
+- CentOS 7 system
+- Docker installed and running
+- cursor-agent installed (usually at `~/.local/share/cursor-agent/`)
 
-## 快速安装
+## Quick Install
 
 ```bash
 ./install.sh
 ```
 
-安装脚本会自动：
-1. 构建基于 Ubuntu 20.04 的 Docker 镜像
-2. 创建 `~/.local/bin/agent` wrapper 脚本
+The install script will automatically:
+1. Build a Docker image based on Ubuntu 20.04
+2. Create a `~/.local/bin/agent` wrapper script
 
-## 使用方法
+## Usage
 
-安装完成后，直接运行：
+After installation, run directly:
 
 ```bash
 agent --version
-agent [其他参数...]
+agent [other arguments...]
 ```
 
-## 文件说明
+## File Description
 
-| 文件 | 说明 |
-|------|------|
-| `install.sh` | 一键安装脚本 |
-| `agent-docker.sh` | 手动运行脚本（不修改系统 agent 命令） |
+| File | Description |
+|------|-------------|
+| `install.sh` | One-click installation script |
+| `agent-docker.sh` | Manual run script (does not modify system agent command) |
 
-## 工作原理
+## How It Works
 
-wrapper 脚本通过 Docker 运行 cursor-agent，并挂载以下目录：
-- cursor-agent 安装目录（只读）
-- 当前工作目录
-- SSH 密钥（`~/.ssh`）
-- 缓存目录（`~/.cache`）
-- cursor-agent 数据目录
+The wrapper script runs cursor-agent via Docker and mounts the following directories:
+- cursor-agent installation directory (read-only)
+- Current working directory
+- SSH keys (`~/.ssh`)
+- Cache directory (`~/.cache`)
+- cursor-agent data directory
 
-## 许可证
+## License
 
-MIT License
+[MIT License](LICENSE)
