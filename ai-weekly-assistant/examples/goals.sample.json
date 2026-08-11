@@ -1,0 +1,24 @@
+[
+  {
+    "id": "goal-delivery",
+    "title": "关键交付推进",
+    "description": "按承诺节奏推进核心功能，并形成可验收成果。",
+    "successCriteria": [
+      "有可演示或可合并的交付物",
+      "关键风险有明确 owner 与缓解措施"
+    ],
+    "priority": 1,
+    "owner": "张三"
+  },
+  {
+    "id": "goal-quality",
+    "title": "质量与稳定性",
+    "description": "降低回归与线上风险，保证口径一致的质量数据。",
+    "successCriteria": [
+      "缺陷与事故有统一计数口径",
+      "对高风险变更有回滚/观测方案"
+    ],
+    "priority": 2,
+    "owner": "李四"
+  }
+]
