@@ -18,8 +18,8 @@ app.innerHTML = `
         <p>Elemental Bastion —— 用元素与化合反应守护实验室，在对战中感受化学之美。</p>
       </div>
       <div class="stats" id="stats">
-        <div class="stat"><span>能量</span><strong id="stat-energy">120</strong></div>
-        <div class="stat"><span>生命</span><strong id="stat-lives">12</strong></div>
+        <div class="stat"><span>能量</span><strong id="stat-energy">150</strong></div>
+        <div class="stat"><span>生命</span><strong id="stat-lives">16</strong></div>
         <div class="stat"><span>分数</span><strong id="stat-score">0</strong></div>
         <div class="stat"><span>波次</span><strong id="stat-wave">—</strong></div>
       </div>

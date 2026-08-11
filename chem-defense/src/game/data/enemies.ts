@@ -84,13 +84,13 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
 export const WAVES: WaveSpec[] = [
   {
     delay: 1.2,
-    entries: [{ kind: 'acidMist', count: 6, interval: 1.1 }],
+    entries: [{ kind: 'acidMist', count: 5, interval: 1.25 }],
   },
   {
     delay: 1.0,
     entries: [
-      { kind: 'acidMist', count: 5, interval: 0.95 },
-      { kind: 'radical', count: 4, interval: 0.7, offset: 2.5 },
+      { kind: 'acidMist', count: 4, interval: 1.05 },
+      { kind: 'radical', count: 3, interval: 0.8, offset: 2.5 },
     ],
   },
   {
