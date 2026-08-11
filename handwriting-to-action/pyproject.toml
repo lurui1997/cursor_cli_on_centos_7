@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "handwriting-to-action"
+version = "0.1.0"
+description = "从手写体照片 OCR 提取关键内容，制定计划并生成可执行行动代码"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Handwriting to Action" }]
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.32.0",
+  "python-multipart>=0.0.12",
+  "pydantic>=2.9.0",
+  "pydantic-settings>=2.6.0",
+  "httpx>=0.27.0",
+  "pillow>=10.4.0",
+  "jinja2>=3.1.4",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.0",
+  "pytest-asyncio>=0.24.0",
+]
+
+[project.scripts]
+hta = "handwriting_to_action.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+handwriting_to_action = ["static/*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["src"]

@@ -64,6 +64,10 @@ wrapper 脚本通过 Docker 运行 cursor-agent，并挂载以下目录：
 - 缓存目录（`~/.cache`）
 - cursor-agent 数据目录
 
+## 相关：墨迹成码
+
+本仓库另含子项目 [`handwriting-to-action/`](handwriting-to-action/)：手写体照片 OCR → 关键内容提取 → 行动计划 → 可执行代码。
+
 ## 许可证
 
 [MIT License](LICENSE)
