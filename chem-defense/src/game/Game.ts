@@ -41,8 +41,8 @@ export class Game {
   phase: GamePhase = 'title';
   stats: GameStats = {
     wave: 0,
-    energy: 120,
-    lives: 12,
+    energy: 150,
+    lives: 16,
     score: 0,
     factsUnlocked: [],
     lastReaction: null,
