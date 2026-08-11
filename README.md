@@ -64,6 +64,10 @@ The wrapper script runs cursor-agent via Docker and mounts the following directo
 - Cache directory (`~/.cache`)
 - cursor-agent data directory
 
+## Related: 墨迹成码
+
+本仓库另含子项目 [`handwriting-to-action/`](handwriting-to-action/)：手写体照片 OCR → 关键内容提取 → 行动计划 → 可执行代码。
+
 ## License
 
 [MIT License](LICENSE)

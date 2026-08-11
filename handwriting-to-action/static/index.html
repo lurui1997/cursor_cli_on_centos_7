@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>墨迹成码 · 手写笔记变行动代码</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true">
+    <div class="ink-wash"></div>
+    <div class="grain"></div>
+  </div>
+
+  <header class="topbar">
+    <a class="brand" href="#top">墨迹成码</a>
+    <nav>
+      <a href="#workspace">开始</a>
+      <a href="#how">流程</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero" id="workspace">
+      <div class="hero-copy">
+        <p class="brand-mark">墨迹成码</p>
+        <h1>把一张手写照片，变成可执行的行动代码</h1>
+        <p class="lede">AI 识别手写体，抽出关键任务，自动排计划并生成脚本。</p>
+        <div class="cta-row">
+          <label class="btn primary" for="file-input">上传手写照片</label>
+          <button type="button" class="btn ghost" id="demo-btn">试用示例文本</button>
+        </div>
+      </div>
+      <div class="hero-visual" aria-hidden="true">
+        <div class="paper-plane">
+          <svg viewBox="0 0 640 480" role="img">
+            <defs>
+              <linearGradient id="paperGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#f7f1e6"/>
+                <stop offset="100%" stop-color="#e8dcc8"/>
+              </linearGradient>
+            </defs>
+            <rect x="48" y="36" width="544" height="408" rx="4" fill="url(#paperGrad)"/>
+            <path d="M96 110 C180 90, 260 140, 340 118 S500 90, 560 130" fill="none" stroke="#1f3a34" stroke-width="3" stroke-linecap="round" opacity=".75"/>
+            <path d="M110 170 C200 155, 280 200, 370 175 S510 150, 560 185" fill="none" stroke="#1f3a34" stroke-width="2.5" stroke-linecap="round" opacity=".55"/>
+            <path d="M100 230 C190 210, 300 255, 400 228 S520 210, 560 240" fill="none" stroke="#c45c26" stroke-width="2.5" stroke-linecap="round" opacity=".7"/>
+            <path d="M120 290 C210 275, 290 320, 390 295 S510 270, 545 305" fill="none" stroke="#1f3a34" stroke-width="2" stroke-linecap="round" opacity=".45"/>
+            <circle cx="500" cy="360" r="42" fill="none" stroke="#c45c26" stroke-width="2" opacity=".35"/>
+            <path d="M478 360 h44 M500 338 v44" stroke="#c45c26" stroke-width="2" opacity=".45"/>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="upload-title">
+      <h2 id="upload-title" class="sr-only">处理区</h2>
+      <form id="upload-form" class="upload-form">
+        <input id="file-input" name="file" type="file" accept="image/*" hidden />
+        <div class="dropzone" id="dropzone" tabindex="0">
+          <p class="drop-title">拖入照片，或点击上方按钮选择</p>
+          <p class="drop-sub" id="file-name">支持 JPG / PNG / WEBP，最大 8MB</p>
+        </div>
+        <div class="controls">
+          <label>
+            模式
+            <select id="mode" name="mode">
+              <option value="auto">自动</option>
+              <option value="demo">Demo（无需 Key）</option>
+              <option value="openai">OpenAI Vision</option>
+            </select>
+          </label>
+          <label class="grow">
+            提示（可选）
+            <input id="hint" name="hint" type="text" placeholder="例如：这是本周冲刺白板" />
+          </label>
+          <button type="submit" class="btn primary" id="submit-btn" disabled>生成计划与代码</button>
+        </div>
+      </form>
+      <p class="status" id="status" role="status"></p>
+    </section>
+
+    <section class="results hidden" id="results">
+      <div class="result-head">
+        <h2 id="plan-title">行动计划</h2>
+        <p id="plan-objective"></p>
+        <p class="meta" id="result-meta"></p>
+      </div>
+
+      <div class="split">
+        <div>
+          <h3>关键内容</h3>
+          <ul id="task-list" class="task-list"></ul>
+        </div>
+        <div>
+          <h3>计划步骤</h3>
+          <ol id="step-list" class="step-list"></ol>
+        </div>
+      </div>
+
+      <div class="artifacts">
+        <h3>生成的行动代码</h3>
+        <div class="tabs" id="artifact-tabs" role="tablist"></div>
+        <pre class="code-view"><code id="code-view"></code></pre>
+        <button type="button" class="btn ghost" id="copy-btn">复制当前文件</button>
+      </div>
+    </section>
+
+    <section class="how" id="how">
+      <h2>三步成码</h2>
+      <p class="section-lede">从墨迹到脚本，中间不过多打扰。</p>
+      <ol class="flow">
+        <li><strong>识别</strong> 视觉模型读取手写照片，还原条目结构。</li>
+        <li><strong>提炼</strong> 抽出目标、任务优先级与约束。</li>
+        <li><strong>落地</strong> 生成 Markdown 清单、Python 进度脚本与启动命令。</li>
+      </ol>
+    </section>
+  </main>
+
+  <footer>
+    <p>墨迹成码 · 本地可跑 Demo，配置 <code>OPENAI_API_KEY</code> 后启用真实手写 OCR。</p>
+  </footer>
+
+  <script src="/assets/app.js"></script>
+</body>
+</html>
