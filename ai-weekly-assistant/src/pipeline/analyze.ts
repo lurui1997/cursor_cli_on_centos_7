@@ -8,13 +8,20 @@ import type {
 } from "../types.js";
 import { aggregateUnifiedMetrics } from "./normalize.js";
 
+const PLACEHOLDER_OWNERS = ["负责人待指定", "待定", "TBD", "tbd", "未指定", "n/a", "N/A", "-"];
+
+function isPlaceholderOwner(owner: string): boolean {
+  const trimmed = owner.trim();
+  return !trimmed || PLACEHOLDER_OWNERS.includes(trimmed);
+}
+
 function isVagueNextStep(step: NextStepPlan): boolean {
   const vagueWords = ["继续推进", "跟进一下", "尽快处理", "加强沟通", "优化体验", "保持关注"];
   const text = `${step.title} ${step.definitionOfDone}`;
   if (vagueWords.some((w) => text.includes(w)) && step.definitionOfDone.length < 12) {
     return true;
   }
-  if (!step.owner.trim() || !step.dueDate.trim() || !step.definitionOfDone.trim()) {
+  if (isPlaceholderOwner(step.owner) || !step.dueDate.trim() || !step.definitionOfDone.trim()) {
     return true;
   }
   return false;
@@ -124,14 +131,26 @@ export function evaluateQuality(
 
   if (standards.requireActionableNextSteps) {
     for (const step of nextSteps) {
-      if (isVagueNextStep(step)) {
-        issues.push({
-          code: "VAGUE_NEXT_STEP",
-          severity: "error",
-          message: `下一步计划过于笼统，需含负责人、截止日期与完成定义: ${step.title}`,
-          targetId: step.id,
-        });
+      if (!isVagueNextStep(step)) {
+        continue;
       }
+      const missing: string[] = [];
+      if (isPlaceholderOwner(step.owner)) {
+        missing.push("负责人（不能留占位符）");
+      }
+      if (!step.dueDate.trim()) {
+        missing.push("截止日期");
+      }
+      if (!step.definitionOfDone.trim()) {
+        missing.push("完成定义");
+      }
+      const detail = missing.length ? `缺少${missing.join("、")}` : "表述笼统，需写清可验证的完成标准";
+      issues.push({
+        code: "VAGUE_NEXT_STEP",
+        severity: "error",
+        message: `下一步计划不可执行（${detail}）: ${step.title}`,
+        targetId: step.id,
+      });
     }
   }
 

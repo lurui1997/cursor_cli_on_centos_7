@@ -51,6 +51,34 @@ npx tsx src/cli.ts run -c ./examples/weekly.config.example.json
 
 产物默认写到 `output/`，同时生成 `.md` 与 `.html`。
 
+## 本地部署
+
+一条命令完成构建、安装 CLI、初始化配置、授权本地 Git 并首次生成：
+
+```bash
+./deploy/local-deploy.sh ~/weekly-deploy "我的工作区"
+```
+
+脚本把 CLI 装到用户级 prefix（默认 `~/.local`），无需 sudo。若 `weekly-assistant` 不可用，把 `~/.local/bin` 加进 `PATH`：
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+常驻后台按小时自动生成：
+
+```bash
+./deploy/install-systemd.sh ~/weekly-deploy      # systemd 用户服务
+journalctl --user -u weekly-assistant -f          # 查看日志
+```
+
+没有 systemd 的环境（如容器）可直接常驻：
+
+```bash
+nohup weekly-assistant schedule -c ~/weekly-deploy/weekly.config.json \
+  > ~/weekly-deploy/scheduler.log 2>&1 &
+```
+
 ## 推荐工作流
 
 1. **设目标**：编辑 `goals`，写清成功标准与 owner  

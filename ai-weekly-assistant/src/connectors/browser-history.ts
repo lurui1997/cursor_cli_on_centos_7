@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import path from "node:path";
 import type { DataSourceConfig, RawMaterial } from "../types.js";
 import type { CollectContext, DataConnector } from "./base.js";
 import { ensureAuthorized, materialId } from "./base.js";
@@ -37,7 +38,7 @@ export const browserHistoryConnector: DataConnector = {
 
     let entries: HistoryEntry[] = [];
     try {
-      const raw = await readFile(historyFile, "utf8");
+      const raw = await readFile(path.resolve(ctx.baseDir, historyFile), "utf8");
       entries = JSON.parse(raw) as HistoryEntry[];
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

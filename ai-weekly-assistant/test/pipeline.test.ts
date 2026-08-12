@@ -115,6 +115,23 @@ test("下一步计划必须可执行，笼统计划会被质量检查拦截", ()
   const issues = evaluateQuality(evidence, vague, config);
   assert.ok(issues.some((i) => i.code === "VAGUE_NEXT_STEP"));
 
+  // 占位符负责人同样视为不可执行，避免「负责人待指定」蒙混过关
+  const placeholderOwner = [
+    {
+      id: "next-placeholder",
+      title: "围绕「关键交付推进」完成可验收交付",
+      owner: "负责人待指定",
+      dueDate: "2026-08-15",
+      definitionOfDone: "满足：有可演示或可合并的交付物，并完成回归验证。",
+      relatedGoalIds: ["goal-delivery"],
+      relatedEvidenceIds: [],
+    },
+  ];
+  const ownerIssues = evaluateQuality(evidence, placeholderOwner, config);
+  const ownerIssue = ownerIssues.find((i) => i.code === "VAGUE_NEXT_STEP");
+  assert.ok(ownerIssue);
+  assert.match(ownerIssue!.message, /负责人/);
+
   const proper = buildNextSteps(evidence, {
     ...config,
     goals: config.goals.map((g) => ({ ...g, owner: g.owner || "负责人A" })),
@@ -124,6 +141,37 @@ test("下一步计划必须可执行，笼统计划会被质量检查拦截", ()
     goals: config.goals.map((g) => ({ ...g, owner: g.owner || "负责人A" })),
   });
   assert.equal(okIssues.filter((i) => i.code === "VAGUE_NEXT_STEP").length, 0);
+});
+
+test("相对输出目录按 baseDir 解析，不受进程 cwd 影响", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "weekly-basedir-"));
+  const originalCwd = process.cwd();
+  try {
+    const config = createDefaultConfig({
+      workspaceName: "BaseDir",
+      period: { start: "2026-08-01", end: "2026-08-12" },
+      output: {
+        format: "markdown",
+        directory: "./output",
+        titleTemplate: "{{workspace}} 周报 {{start}} ~ {{end}}",
+      },
+    });
+    config.sources = config.sources.map((s) =>
+      s.id === "src-custom"
+        ? { ...s, options: { notes: ["部署校验"], structuredNotes: [] } }
+        : { ...s, enabled: false },
+    );
+
+    process.chdir(os.tmpdir());
+    const report = await runPipeline(config, { write: true, baseDir: dir });
+
+    assert.ok(report.markdownPath);
+    assert.equal(path.dirname(path.resolve(report.markdownPath!)), path.join(dir, "output"));
+    await readFile(report.markdownPath!, "utf8");
+  } finally {
+    process.chdir(originalCwd);
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test("授权后可端到端生成 markdown 与 html", async () => {

@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import path from "node:path";
 import { promisify } from "node:util";
 import type { DataSourceConfig, RawMaterial } from "../types.js";
 import type { CollectContext, DataConnector } from "./base.js";
@@ -41,7 +42,7 @@ export const gitConnector: DataConnector = {
   kind: "git",
   async collect(source: DataSourceConfig, ctx: CollectContext): Promise<RawMaterial[]> {
     ensureAuthorized(source);
-    const repoPath = String(source.options.repoPath ?? ".");
+    const repoPath = path.resolve(ctx.baseDir, String(source.options.repoPath ?? "."));
     const authorEmail = String(source.options.authorEmail ?? "").trim();
     const { start, end } = ctx.config.period;
 

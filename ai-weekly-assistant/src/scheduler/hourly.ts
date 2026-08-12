@@ -12,6 +12,7 @@ export interface SchedulerHandle {
 export function startHourlyScheduler(
   configLoader: () => Promise<AssistantConfig>,
   onResult?: (info: { ok: boolean; message: string }) => void,
+  baseDir?: string,
 ): SchedulerHandle {
   let running = false;
 
@@ -27,7 +28,7 @@ export function startHourlyScheduler(
         onResult?.({ ok: false, message: "小时调度未启用" });
         return;
       }
-      const report = await runPipeline(config);
+      const report = await runPipeline(config, { baseDir });
       onResult?.({
         ok: true,
         message: `小时任务完成: md=${report.markdownPath ?? "-"} html=${report.htmlPath ?? "-"}`,

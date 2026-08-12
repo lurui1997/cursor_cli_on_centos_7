@@ -3,6 +3,8 @@ import type { AssistantConfig, DataSourceConfig, RawMaterial } from "../types.js
 export interface CollectContext {
   config: AssistantConfig;
   now: Date;
+  /** 配置文件所在目录，用于解析 options 中的相对路径 */
+  baseDir: string;
 }
 
 export interface DataConnector {

@@ -6,10 +6,11 @@ import { writeReports } from "../report/writer.js";
 
 export async function runPipeline(
   config: AssistantConfig,
-  options?: { now?: Date; write?: boolean },
+  options?: { now?: Date; write?: boolean; baseDir?: string },
 ): Promise<GeneratedReport> {
   const now = options?.now ?? new Date();
-  const { materials, skipped } = await collectMaterials(config, now);
+  const baseDir = options?.baseDir ?? process.cwd();
+  const { materials, skipped } = await collectMaterials(config, now, baseDir);
   const { evidence, issues } = normalizeMaterials(materials, config);
   const analysis = analyze(materials, evidence, config, [...skipped, ...issues]);
 
@@ -18,7 +19,7 @@ export async function runPipeline(
   const format: ReportFormat = config.output.format;
 
   if (options?.write !== false) {
-    const written = await writeReports(config, analysis, now);
+    const written = await writeReports(config, analysis, now, baseDir);
     markdownPath = written.markdownPath;
     htmlPath = written.htmlPath;
   }

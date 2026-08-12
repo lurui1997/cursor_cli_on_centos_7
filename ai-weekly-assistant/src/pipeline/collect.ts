@@ -7,7 +7,11 @@ export interface CollectResult {
 }
 
 /** 仅采集已授权且启用的数据源 */
-export async function collectMaterials(config: AssistantConfig, now = new Date()): Promise<CollectResult> {
+export async function collectMaterials(
+  config: AssistantConfig,
+  now = new Date(),
+  baseDir = process.cwd(),
+): Promise<CollectResult> {
   const materials: RawMaterial[] = [];
   const skipped: QualityIssue[] = [];
 
@@ -26,7 +30,7 @@ export async function collectMaterials(config: AssistantConfig, now = new Date()
     }
 
     const connector = getConnector(source.kind);
-    const batch = await connector.collect(source, { config, now });
+    const batch = await connector.collect(source, { config, now, baseDir });
     materials.push(...batch);
   }
 

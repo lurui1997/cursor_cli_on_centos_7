@@ -151,8 +151,12 @@ program
   .requiredOption("-c, --config <path>", "配置文件路径")
   .option("--dry-run", "只分析不写文件", false)
   .action(async (opts: { config: string; dryRun?: boolean }) => {
-    const config = await loadConfig(path.resolve(opts.config));
-    const report = await runPipeline(config, { write: !opts.dryRun });
+    const configPath = path.resolve(opts.config);
+    const config = await loadConfig(configPath);
+    const report = await runPipeline(config, {
+      write: !opts.dryRun,
+      baseDir: path.dirname(configPath),
+    });
     console.log(`生成时间: ${report.generatedAt}`);
     console.log(`采集摘要: ${report.analysis.collectedSummary}`);
     console.log(`成果证据: ${report.analysis.evidence.length}`);
@@ -186,6 +190,7 @@ program
         const ts = new Date().toISOString();
         console.log(`[${ts}] ${info.ok ? "OK" : "WARN"} ${info.message}`);
       },
+      path.dirname(configPath),
     );
 
     const shutdown = () => {
