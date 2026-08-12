@@ -375,14 +375,15 @@ export class Renderer {
   private drawDangerVignette(game: Game): void {
     if (game.phase !== 'playing' || game.stats.lives > 5) return;
     const ctx = this.ctx;
-    const intensity = (1 - game.stats.lives / 6) * (0.55 + Math.sin(this.t * 4) * 0.2) + 0.1;
+    const intensity =
+      (1 - game.stats.lives / 6) * 0.26 + 0.05 + Math.sin(this.t * 4) * 0.04;
     const g = ctx.createRadialGradient(
       game.width / 2,
       game.height / 2,
-      game.height * 0.3,
+      game.height * 0.55,
       game.width / 2,
       game.height / 2,
-      game.height * 0.85,
+      game.height * 0.95,
     );
     g.addColorStop(0, 'rgba(251,113,133,0)');
     g.addColorStop(1, `rgba(251,113,133,${Math.max(0, intensity).toFixed(3)})`);

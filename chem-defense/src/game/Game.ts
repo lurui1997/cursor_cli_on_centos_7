@@ -457,7 +457,7 @@ export class Game {
         this.stats.leaks += 1;
         this.leaksThisWave += 1;
         this.stats.combo = 0;
-        this.pushFloater(this.width - 90, this.height / 2, '突破防线', '#fb7185', 1.3);
+        this.pushFloater(enemy.x - 40, enemy.y - 30, '突破防线', '#fb7185', 1.3);
         this.pushRing(enemy.x, enemy.y, 60, '#fb7185', 0.45, 3);
         this.addShake(8);
         this.audio.play('leak');
