@@ -624,8 +624,9 @@ export class Game {
     apply(enemy, 1);
     this.spawnBurst(enemy.x, enemy.y, projectile.color, 5);
     this.pushRing(enemy.x, enemy.y, anyCrit ? 30 : 20, projectile.color, 0.24, anyCrit ? 2.5 : 1.5);
-    if (projectile.equation) {
-      this.spawnTextParticle(enemy.x, enemy.y - 24, projectile.equation, projectile.color);
+    // Equations are flavour, not feedback: showing one per hit buries the damage numbers.
+    if (projectile.equation && Math.random() < 0.12) {
+      this.spawnTextParticle(enemy.x, enemy.y - 30, projectile.equation, projectile.color);
     }
     this.audio.play(anyCrit ? 'crit' : 'hit');
 
@@ -660,13 +661,14 @@ export class Game {
       this.unlockFact(def.fact);
 
       this.pushFloater(enemy.x, enemy.y - 26, `+${energy}`, '#5eead4');
-      if (this.stats.combo >= 3) {
+      // Only celebrate round-number milestones; the HUD counter covers the rest.
+      if (this.stats.combo >= 5 && this.stats.combo % 5 === 0) {
         this.pushFloater(
           enemy.x,
-          enemy.y - 42,
+          enemy.y - 44,
           `${this.stats.combo} 连击 ×${multiplier.toFixed(1)}`,
           '#fde68a',
-          1.1,
+          1.2,
         );
       }
     }
