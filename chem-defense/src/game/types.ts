@@ -87,6 +87,22 @@ export interface WaveSpec {
   entries: Array<{ kind: EnemyKind; count: number; interval: number; offset?: number }>;
 }
 
+export interface LevelDef {
+  id: string;
+  number: number;
+  name: string;
+  subtitle: string;
+  description: string;
+  path: Vec2[];
+  waves: WaveSpec[];
+  startingEnergy: number;
+  startingLives: number;
+  hpScale: number;
+  speedScale: number;
+  accent: string;
+  recommended: string;
+}
+
 export interface TowerInstance {
   id: number;
   gridX: number;
@@ -99,6 +115,8 @@ export interface TowerInstance {
   recoil: number;
   /** Seconds since placement, used for the pop-in animation. */
   age: number;
+  level: number;
+  invested: number;
 }
 
 export interface EnemyInstance {

@@ -1,7 +1,7 @@
 import type { Vec2 } from './types';
 
-/** Waypoints in canvas coordinates (960×540 logical). */
-export const PATH: Vec2[] = [
+/** Default waypoints in canvas coordinates (960×540 logical). */
+const DEFAULT_PATH: Vec2[] = [
   { x: -40, y: 270 },
   { x: 160, y: 270 },
   { x: 160, y: 120 },
@@ -12,6 +12,16 @@ export const PATH: Vec2[] = [
   { x: 900, y: 200 },
   { x: 1000, y: 200 },
 ];
+
+let activePath = DEFAULT_PATH;
+
+export function setActivePath(path: Vec2[]): void {
+  activePath = path;
+}
+
+export function getActivePath(): Vec2[] {
+  return activePath;
+}
 
 export const GRID = {
   originX: 40,
@@ -39,9 +49,9 @@ export function isPathCell(gx: number, gy: number): boolean {
   const cx = GRID.originX + gx * GRID.cell + GRID.cell / 2;
   const cy = GRID.originY + gy * GRID.cell + GRID.cell / 2;
   const half = GRID.cell * 0.42;
-  for (let i = 0; i < PATH.length - 1; i++) {
-    const a = PATH[i];
-    const b = PATH[i + 1];
+  for (let i = 0; i < activePath.length - 1; i++) {
+    const a = activePath[i];
+    const b = activePath[i + 1];
     const minX = Math.min(a.x, b.x) - half;
     const maxX = Math.max(a.x, b.x) + half;
     const minY = Math.min(a.y, b.y) - half;
@@ -53,9 +63,9 @@ export function isPathCell(gx: number, gy: number): boolean {
 
 export function pathLength(): number {
   let len = 0;
-  for (let i = 0; i < PATH.length - 1; i++) {
-    const a = PATH[i];
-    const b = PATH[i + 1];
+  for (let i = 0; i < activePath.length - 1; i++) {
+    const a = activePath[i];
+    const b = activePath[i + 1];
     len += Math.hypot(b.x - a.x, b.y - a.y);
   }
   return len;
@@ -63,9 +73,9 @@ export function pathLength(): number {
 
 export function positionOnPath(distance: number): { pos: Vec2; index: number; done: boolean } {
   let remaining = distance;
-  for (let i = 0; i < PATH.length - 1; i++) {
-    const a = PATH[i];
-    const b = PATH[i + 1];
+  for (let i = 0; i < activePath.length - 1; i++) {
+    const a = activePath[i];
+    const b = activePath[i + 1];
     const seg = Math.hypot(b.x - a.x, b.y - a.y);
     if (remaining <= seg) {
       const t = remaining / seg;
@@ -77,6 +87,6 @@ export function positionOnPath(distance: number): { pos: Vec2; index: number; do
     }
     remaining -= seg;
   }
-  const last = PATH[PATH.length - 1];
-  return { pos: { ...last }, index: PATH.length - 2, done: true };
+  const last = activePath[activePath.length - 1];
+  return { pos: { ...last }, index: activePath.length - 2, done: true };
 }

@@ -1,8 +1,16 @@
 import { AudioEngine } from './audio';
 import { ACHIEVEMENTS } from './data/achievements';
 import { COMPOUNDS, ELEMENTS, findCompound } from './data/elements';
-import { ENEMIES, scaledEnemyHp, scaledEnemySpeed, WAVES } from './data/enemies';
-import { gridToWorld, isPathCell, PATH, positionOnPath, worldToGrid } from './path';
+import { ENEMIES, scaledEnemyHp, scaledEnemySpeed } from './data/enemies';
+import { LEVELS, LEVEL_BY_ID } from './data/levels';
+import {
+  getActivePath,
+  gridToWorld,
+  isPathCell,
+  positionOnPath,
+  setActivePath,
+  worldToGrid,
+} from './path';
 import type {
   AchievementToast,
   Banner,
@@ -14,6 +22,7 @@ import type {
   GamePhase,
   GameStats,
   ImpactRing,
+  LevelDef,
   ParticleInstance,
   ProjectileInstance,
   StatusEffect,
@@ -49,7 +58,9 @@ export class Game {
   readonly audio = new AudioEngine();
 
   phase: GamePhase = 'title';
-  stats: GameStats = Game.freshStats();
+  selectedLevel: LevelDef = LEVELS[0];
+  stats: GameStats = Game.freshStats(LEVELS[0]);
+  gameSpeed: 1 | 2 = 1;
 
   selectedElement: ElementId | null = 'H';
   hoveredCell: { gx: number; gy: number } | null = null;
@@ -76,11 +87,11 @@ export class Game {
   private hitFlashById = new Map<number, number>();
   private seenFacts = new Set<string>();
 
-  private static freshStats(): GameStats {
+  private static freshStats(level: LevelDef): GameStats {
     return {
       wave: 0,
-      energy: 150,
-      lives: 16,
+      energy: level.startingEnergy,
+      lives: level.startingLives,
       score: 0,
       factsUnlocked: [],
       lastReaction: null,
@@ -94,9 +105,12 @@ export class Game {
     };
   }
 
-  start(): void {
+  start(levelId = this.selectedLevel.id): void {
+    const level = LEVEL_BY_ID.get(levelId) ?? LEVELS[0];
+    this.selectedLevel = level;
+    setActivePath(level.path);
     this.phase = 'playing';
-    this.stats = Game.freshStats();
+    this.stats = Game.freshStats(level);
     this.towers = [];
     this.enemies = [];
     this.projectiles = [];
@@ -109,13 +123,38 @@ export class Game {
     this.waveTime = 0;
     this.betweenWaves = 0;
     this.awaitingNextWave = true;
+    this.gameSpeed = 1;
     this.comboTimer = 0;
     this.shake = 0;
     this.leaksThisWave = 0;
     this.hitFlashById.clear();
     this.seenFacts.clear();
     this.selectedElement = 'H';
-    this.unlockFact('欢迎来到元素防线：用真实化学反应守护实验室。');
+    this.unlockFact(`进入${level.name}：${level.description}`);
+  }
+
+  selectLevel(levelId: string): void {
+    const level = LEVEL_BY_ID.get(levelId);
+    if (!level || this.phase !== 'title') return;
+    this.selectedLevel = level;
+    setActivePath(level.path);
+  }
+
+  showTitle(): void {
+    this.phase = 'title';
+  }
+
+  launchWave(): void {
+    if (this.phase !== 'playing' || !this.awaitingNextWave) return;
+    this.beginNextWave();
+  }
+
+  isWaveReady(): boolean {
+    return this.phase === 'playing' && this.awaitingNextWave;
+  }
+
+  toggleSpeed(): void {
+    this.gameSpeed = this.gameSpeed === 1 ? 2 : 1;
   }
 
   togglePause(): void {
@@ -175,6 +214,8 @@ export class Game {
       angle: 0,
       recoil: 0,
       age: 0,
+      level: 1,
+      invested: def.cost,
     };
     this.towers.push(tower);
     this.selectedTowerId = tower.id;
@@ -192,14 +233,7 @@ export class Game {
     const idx = this.towers.findIndex((t) => t.id === this.selectedTowerId);
     if (idx < 0) return;
     const tower = this.towers[idx];
-    let refund = 20;
-    if (tower.elementId) refund = Math.floor(ELEMENTS[tower.elementId].cost * 0.6);
-    if (tower.compoundId) {
-      const c = COMPOUNDS[tower.compoundId];
-      refund = Math.floor(
-        (ELEMENTS[c.ingredients[0]].cost + ELEMENTS[c.ingredients[1]].cost) * 0.55,
-      );
-    }
+    const refund = Math.floor(tower.invested * 0.6);
     this.stats.energy += refund;
     const pos = gridToWorld(tower.gridX, tower.gridY);
     this.pushFloater(pos.x, pos.y, `+${refund} 能量`, '#5eead4');
@@ -226,6 +260,7 @@ export class Game {
       const pos = gridToWorld(placed.gridX, placed.gridY);
       placed.compoundId = compound.id;
       placed.elementId = undefined;
+      placed.invested += other.invested;
       this.towers = this.towers.filter((t) => t.id !== other.id);
       this.stats.score += 50;
       this.stats.lastReaction = compound.equation;
@@ -250,6 +285,39 @@ export class Game {
     }
   }
 
+  upgradeSelected(): void {
+    if (this.phase !== 'playing') return;
+    const tower = this.getSelectedTower();
+    if (!tower || tower.level >= 3) return;
+    const cost = this.upgradeCost(tower);
+    if (this.stats.energy < cost) {
+      const pos = gridToWorld(tower.gridX, tower.gridY);
+      this.pushFloater(pos.x, pos.y - 28, `还差 ${cost - this.stats.energy} 能量`, '#fcd34d');
+      this.audio.play('deny');
+      return;
+    }
+
+    this.stats.energy -= cost;
+    tower.invested += cost;
+    tower.level += 1;
+    const pos = gridToWorld(tower.gridX, tower.gridY);
+    this.pushFloater(pos.x, pos.y - 30, `升级 Lv.${tower.level}`, '#fde68a', 1.35);
+    this.pushRing(pos.x, pos.y, 62, '#fde68a', 0.5, 3);
+    this.spawnBurst(pos.x, pos.y, '#fde68a', 14);
+    this.audio.play('synth', 1 + tower.level * 0.08);
+    this.addShake(3);
+  }
+
+  upgradeCost(tower: TowerInstance): number {
+    if (tower.level >= 3) return 0;
+    const base = tower.compoundId
+      ? 70
+      : tower.elementId
+        ? Math.round(ELEMENTS[tower.elementId].cost * 0.75)
+        : 50;
+    return Math.round(base * tower.level);
+  }
+
   update(dt: number): void {
     if (this.phase !== 'playing') return;
 
@@ -262,12 +330,7 @@ export class Game {
       if (this.comboTimer <= 0) this.stats.combo = 0;
     }
 
-    if (this.awaitingNextWave) {
-      this.betweenWaves += dt;
-      if (this.betweenWaves >= (this.stats.wave === 0 ? 0.6 : 3.2)) {
-        this.beginNextWave();
-      }
-    }
+    if (this.awaitingNextWave) this.betweenWaves += dt;
 
     while (this.spawnQueue.length && this.spawnQueue[0].at <= this.waveTime) {
       const spawn = this.spawnQueue.shift()!;
@@ -288,7 +351,7 @@ export class Game {
       this.spawnQueue.length === 0 &&
       this.enemies.every((e) => !e.alive)
     ) {
-      if (this.stats.wave >= WAVES.length) {
+      if (this.stats.wave >= this.selectedLevel.waves.length) {
         this.phase = 'won';
         this.unlockFact('你用元素周期表的智慧守住了实验室。化学，既是武器也是诗。');
         this.audio.play('victory');
@@ -331,7 +394,7 @@ export class Game {
     this.awaitingNextWave = false;
     this.betweenWaves = 0;
     this.stats.wave += 1;
-    const wave = WAVES[this.stats.wave - 1];
+    const wave = this.selectedLevel.waves[this.stats.wave - 1];
     if (!wave) return;
     this.waveTime = 0;
     this.spawnQueue = [];
@@ -351,7 +414,7 @@ export class Game {
     this.spawnQueue.sort((a, b) => a.at - b.at);
     this.leaksThisWave = 0;
     this.showBanner(
-      `第 ${this.stats.wave} 波 / ${WAVES.length}`,
+      `第 ${this.stats.wave} 波 / ${this.selectedLevel.waves.length}`,
       adaptNote ? 'AI 导演调整了反应物配比' : '反应开始',
       adaptNote ? '#fbbf24' : '#fde68a',
     );
@@ -399,7 +462,9 @@ export class Game {
 
   private spawnEnemy(kind: keyof typeof ENEMIES): void {
     const def = ENEMIES[kind];
-    const hp = scaledEnemyHp(def.hp, this.stats.wave);
+    const hp = Math.round(
+      scaledEnemyHp(def.hp, this.stats.wave) * this.selectedLevel.hpScale,
+    );
     const start = positionOnPath(0).pos;
     this.enemies.push({
       id: uid(),
@@ -445,7 +510,10 @@ export class Game {
       }
 
       const def = ENEMIES[enemy.kind];
-      const speed = scaledEnemySpeed(def.speed, this.stats.wave) * enemy.speedMul;
+      const speed =
+        scaledEnemySpeed(def.speed, this.stats.wave) *
+        this.selectedLevel.speedScale *
+        enemy.speedMul;
       enemy.progress += speed * dt;
       const along = positionOnPath(enemy.progress);
       enemy.x = along.pos.x;
@@ -509,14 +577,17 @@ export class Game {
     equation?: string;
   } | null {
     const pos = gridToWorld(tower.gridX, tower.gridY);
+    const damageBoost = 1 + (tower.level - 1) * 0.45;
+    const rateBoost = 1 + (tower.level - 1) * 0.18;
+    const rangeBoost = 1 + (tower.level - 1) * 0.1;
     if (tower.compoundId) {
       const c = COMPOUNDS[tower.compoundId];
       return {
         x: pos.x,
         y: pos.y,
-        range: c.range,
-        fireRate: c.fireRate,
-        damage: c.damage,
+        range: c.range * rangeBoost,
+        fireRate: c.fireRate * rateBoost,
+        damage: c.damage * damageBoost,
         speed: 360,
         color: c.color,
         tags: c.tags,
@@ -530,9 +601,9 @@ export class Game {
       return {
         x: pos.x,
         y: pos.y,
-        range: e.range,
-        fireRate: e.fireRate,
-        damage: e.damage,
+        range: e.range * rangeBoost,
+        fireRate: e.fireRate * rateBoost,
+        damage: e.damage * damageBoost,
         speed: e.projectileSpeed,
         color: e.color,
         tags: e.tags,
@@ -859,17 +930,13 @@ export class Game {
   }
 
   getPath() {
-    return PATH;
+    return getActivePath();
   }
 
   waveProgressLabel(): string {
     if (this.phase === 'title') return '';
-    if (this.awaitingNextWave && this.stats.wave > 0 && this.stats.wave < WAVES.length) {
-      const left = Math.max(0, 3.2 - this.betweenWaves);
-      return `下一波 ${left.toFixed(1)}s`;
-    }
-    if (this.stats.wave === 0) return '准备开始';
-    return `波次 ${this.stats.wave} / ${WAVES.length}`;
+    if (this.awaitingNextWave) return this.stats.wave === 0 ? '备战' : '待开波';
+    return `波次 ${this.stats.wave} / ${this.selectedLevel.waves.length}`;
   }
 
   getReactionFlash(): number {

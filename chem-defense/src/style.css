@@ -211,13 +211,73 @@ canvas#game {
 }
 
 .overlay-card {
-  width: min(520px, 100%);
+  width: min(680px, 100%);
   text-align: center;
   padding: 26px 24px;
   border-radius: 14px;
   border: 1px solid var(--panel-border);
   background: rgba(6, 34, 38, 0.96);
   animation: pop 0.35s ease both;
+}
+
+.level-select {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 16px 0 18px;
+}
+
+.level-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 9px;
+  text-align: left;
+  padding: 11px;
+  border-radius: 10px;
+  border: 1px solid var(--panel-border);
+  background: rgba(2, 20, 24, 0.7);
+  color: var(--text);
+}
+
+.level-card:hover:not(:disabled),
+.level-card.selected {
+  border-color: var(--amber);
+  background: rgba(245, 158, 11, 0.09);
+}
+
+.level-card.locked {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.level-number {
+  grid-row: 1 / 3;
+  align-self: center;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  color: var(--amber-soft);
+}
+
+.level-copy {
+  display: flex;
+  flex-direction: column;
+}
+
+.level-copy strong {
+  font-size: 0.78rem;
+}
+
+.level-copy em {
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-style: normal;
+}
+
+.level-stars {
+  grid-column: 2;
+  color: var(--amber-soft);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
 }
 
 .overlay-card h2 {
@@ -302,6 +362,12 @@ button:active {
   transform: scale(0.97);
 }
 
+button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .btn-primary {
   background: var(--teal);
   color: #03201f;
@@ -377,7 +443,9 @@ button:active {
 
 .controls {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
+  justify-content: flex-end;
 }
 
 .icon-btn {
@@ -401,6 +469,27 @@ button:active {
 .icon-btn.warn {
   color: var(--amber-soft);
   border-color: rgba(245, 158, 11, 0.3);
+}
+
+.icon-btn.launch {
+  color: var(--teal-soft);
+  border-color: rgba(45, 212, 191, 0.38);
+}
+
+.icon-btn.launch.ready {
+  background: var(--teal);
+  color: #03201f;
+  animation: launch-pulse 1.8s ease-in-out infinite;
+}
+
+.icon-btn.upgrade {
+  color: var(--amber-soft);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.result-stars {
+  color: var(--amber-soft);
+  letter-spacing: 0.08em;
 }
 
 .shop {
@@ -632,5 +721,21 @@ button:active {
   * {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .level-select {
+    grid-template-columns: 1fr;
+  }
+}
+
+@keyframes launch-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(45, 212, 191, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.12);
   }
 }

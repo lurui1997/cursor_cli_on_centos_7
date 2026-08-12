@@ -168,8 +168,9 @@ export class Renderer {
       const label = compound?.formula ?? element?.id ?? '?';
       const color = compound?.color ?? element?.color ?? '#ffffff';
       const glow = compound?.glow ?? element?.glow ?? '#5eead4';
-      const range = compound?.range ?? element?.range ?? 100;
-      const radius = compound ? 19 : 16;
+      const baseRange = compound?.range ?? element?.range ?? 100;
+      const range = baseRange * (1 + (tower.level - 1) * 0.1);
+      const radius = (compound ? 19 : 16) + (tower.level - 1) * 2;
       const pop = Math.min(1, tower.age / 0.28);
       const scale = 0.6 + easeOut(pop) * 0.4;
 
@@ -224,6 +225,17 @@ export class Renderer {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(label, 0, 0);
+
+      if (tower.level > 1) {
+        const dotGap = 6;
+        const startX = -((tower.level - 1) * dotGap) / 2;
+        ctx.fillStyle = '#fde68a';
+        for (let i = 0; i < tower.level; i++) {
+          ctx.beginPath();
+          ctx.arc(startX + i * dotGap, radius + 7, 1.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
       ctx.restore();
     }
   }
