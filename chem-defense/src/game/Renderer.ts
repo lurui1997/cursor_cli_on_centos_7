@@ -58,6 +58,66 @@ export class Renderer {
     this.drawDangerVignette(game);
     this.drawCombo(game);
     this.drawBanner(game);
+    this.drawSpeedBadge(game);
+    this.drawPauseState(game);
+  }
+
+  /** Fast-forward needs a persistent marker; players forget they left it on. */
+  private drawSpeedBadge(game: Game): void {
+    if (game.phase !== 'playing' || game.gameSpeed === 1) return;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.translate(52, game.height - 30);
+
+    ctx.fillStyle = 'rgba(3, 20, 24, 0.8)';
+    ctx.strokeStyle = 'rgba(253, 230, 138, 0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(-34, -15, 68, 30, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#fde68a';
+    ctx.font = '800 15px Sora, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${game.gameSpeed}× 加速`, 0, 1);
+    ctx.restore();
+  }
+
+  private drawPauseState(game: Game): void {
+    if (game.phase !== 'paused') return;
+    const ctx = this.ctx;
+    const { width: w, height: h } = game;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(3, 16, 20, 0.55)';
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.translate(w / 2, h / 2);
+    ctx.fillStyle = 'rgba(3, 20, 24, 0.9)';
+    ctx.strokeStyle = 'rgba(94, 234, 212, 0.45)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(-150, -46, 300, 92, 14);
+    ctx.fill();
+    ctx.stroke();
+
+    // Pause glyph
+    ctx.fillStyle = '#5eead4';
+    ctx.fillRect(-13, -26, 8, 26);
+    ctx.fillRect(5, -26, 8, 26);
+
+    ctx.fillStyle = '#e8fffb';
+    ctx.font = '800 17px Sora, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('已暂停', 0, 14);
+
+    ctx.fillStyle = 'rgba(139, 178, 174, 0.9)';
+    ctx.font = '600 11px Sora, sans-serif';
+    ctx.fillText('点击画面或按 P 继续', 0, 33);
+    ctx.restore();
   }
 
   /** Flat two-stop wash; detail lives on the play layer, not the backdrop. */

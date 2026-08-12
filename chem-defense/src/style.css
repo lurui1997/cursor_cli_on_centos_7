@@ -388,6 +388,116 @@ button:disabled {
   border-color: var(--teal);
 }
 
+.controlbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  border-radius: 12px;
+}
+
+.btn-wave {
+  padding: 9px 20px;
+  border-radius: 9px;
+  background: rgba(2, 20, 24, 0.7);
+  border: 1px solid rgba(45, 212, 191, 0.4);
+  color: var(--teal-soft);
+  font-size: 0.84rem;
+}
+
+.btn-wave.ready {
+  background: var(--teal);
+  color: #03201f;
+  animation: launch-pulse 1.8s ease-in-out infinite;
+}
+
+.speed-group {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(2, 20, 24, 0.75);
+  border: 1px solid var(--panel-border);
+  margin-left: auto;
+}
+
+.speed-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 46px;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 7px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.speed-btn:hover:not(:disabled) {
+  color: var(--text);
+  background: rgba(94, 234, 212, 0.08);
+}
+
+.speed-btn.active {
+  background: var(--teal);
+  color: #03201f;
+}
+
+.speed-btn.pause {
+  min-width: 62px;
+  font-family: var(--font-display);
+  border-right: 1px solid var(--panel-border);
+  border-radius: 7px 3px 3px 7px;
+}
+
+.speed-btn.pause.active {
+  background: var(--amber);
+  color: #1a1206;
+}
+
+.pause-glyph,
+.play-glyph {
+  display: inline-block;
+  width: 8px;
+  height: 10px;
+}
+
+.pause-glyph {
+  border-left: 3px solid currentColor;
+  border-right: 3px solid currentColor;
+}
+
+.play-glyph {
+  width: 0;
+  height: 0;
+  border-left: 8px solid currentColor;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+
+@media (max-width: 640px) {
+  .controlbar {
+    flex-wrap: wrap;
+  }
+
+  .speed-group {
+    margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .speed-btn {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
 .bottom {
   display: grid;
   grid-template-columns: 1.25fr 1fr;
@@ -470,17 +580,6 @@ button:disabled {
 .icon-btn.warn {
   color: var(--amber-soft);
   border-color: rgba(245, 158, 11, 0.3);
-}
-
-.icon-btn.launch {
-  color: var(--teal-soft);
-  border-color: rgba(45, 212, 191, 0.38);
-}
-
-.icon-btn.launch.ready {
-  background: var(--teal);
-  color: #03201f;
-  animation: launch-pulse 1.8s ease-in-out infinite;
 }
 
 .icon-btn.upgrade {

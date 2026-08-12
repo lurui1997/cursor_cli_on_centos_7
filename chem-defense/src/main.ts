@@ -4,7 +4,7 @@ import { ELEMENT_ORDER, ELEMENTS, COMPOUNDS } from './game/data/elements';
 import { LEVELS } from './game/data/levels';
 import { Game } from './game/Game';
 import { Renderer } from './game/Renderer';
-import type { ElementId, LevelDef } from './game/types';
+import type { ElementId, GameSpeed, LevelDef } from './game/types';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('#app missing');
@@ -48,15 +48,25 @@ app.innerHTML = `
       </div>
     </div>
 
+    <div class="controlbar">
+      <button class="btn-wave" id="btn-wave" type="button">开始第 1 波</button>
+      <div class="speed-group" role="group" aria-label="游戏速度">
+        <button class="speed-btn pause" id="btn-pause" type="button" title="暂停 (P)">
+          <span class="pause-glyph" aria-hidden="true"></span>暂停
+        </button>
+        <button class="speed-btn" data-speed="1" type="button">1×</button>
+        <button class="speed-btn" data-speed="2" type="button">2×</button>
+        <button class="speed-btn" data-speed="5" type="button">5×</button>
+        <button class="speed-btn" data-speed="10" type="button">10×</button>
+      </div>
+      <button class="icon-btn" id="btn-sound" type="button" title="音效开关">音效 开</button>
+    </div>
+
     <div class="bottom">
       <section class="panel">
         <div class="panel-head">
           <h3>元素货架</h3>
           <div class="controls">
-            <button class="icon-btn launch" id="btn-wave" type="button">开始第 1 波</button>
-            <button class="icon-btn" id="btn-speed" type="button">1×</button>
-            <button class="icon-btn" id="btn-sound" type="button" title="音效开关">音效 开</button>
-            <button class="icon-btn" id="btn-pause" type="button">暂停</button>
             <button class="icon-btn upgrade" id="btn-upgrade" type="button">升级</button>
             <button class="icon-btn warn" id="btn-sell" type="button">出售</button>
           </div>
@@ -100,8 +110,11 @@ const btnPause = document.querySelector<HTMLButtonElement>('#btn-pause')!;
 const btnSell = document.querySelector<HTMLButtonElement>('#btn-sell')!;
 const btnSound = document.querySelector<HTMLButtonElement>('#btn-sound')!;
 const btnWave = document.querySelector<HTMLButtonElement>('#btn-wave')!;
-const btnSpeed = document.querySelector<HTMLButtonElement>('#btn-speed')!;
 const btnUpgrade = document.querySelector<HTMLButtonElement>('#btn-upgrade')!;
+const speedGroup = document.querySelector<HTMLDivElement>('.speed-group')!;
+const speedButtons = Array.from(
+  speedGroup.querySelectorAll<HTMLButtonElement>('button[data-speed]'),
+);
 
 const game = new Game();
 const renderer = new Renderer(canvas);
@@ -253,7 +266,19 @@ function updateStats(): void {
   btnWave.textContent =
     game.stats.wave === 0 ? '开始第 1 波' : `开始第 ${game.stats.wave + 1} 波`;
   btnWave.title = `下一波：${game.nextWavePreview()}`;
-  btnSpeed.textContent = `${game.gameSpeed}×`;
+
+  const inRun = game.phase === 'playing' || game.phase === 'paused';
+  const paused = game.isPaused();
+  btnPause.classList.toggle('active', paused);
+  btnPause.disabled = !inRun;
+  btnPause.innerHTML = paused
+    ? '<span class="play-glyph" aria-hidden="true"></span>继续'
+    : '<span class="pause-glyph" aria-hidden="true"></span>暂停';
+  for (const btn of speedButtons) {
+    btn.disabled = !inRun;
+    btn.classList.toggle('active', !paused && Number(btn.dataset.speed) === game.gameSpeed);
+  }
+
   const tower = game.getSelectedTower();
   btnUpgrade.disabled = !tower || tower.level >= 3 || game.phase !== 'playing';
   btnUpgrade.textContent = tower?.level === 3 ? '已满级' : tower ? `升级 ${game.upgradeCost(tower)}` : '升级';
@@ -300,7 +325,8 @@ function syncOverlay(): void {
       );
       break;
     case 'paused':
-      showOverlay('实验暂停', '反应仍在容器中蓄势，准备好后继续。', '系统处于准稳态', '继续');
+      // Kept off the modal so the frozen battlefield stays readable while planning.
+      overlay.classList.remove('visible');
       break;
     case 'won':
       showOverlay('防线稳固', `${game.selectedLevel.name}已完成，下一关现已解锁。`, '产率 100% · 反应完成', '返回选关');
@@ -364,8 +390,13 @@ btnWave.addEventListener('click', () => {
   updateStats();
 });
 
-btnSpeed.addEventListener('click', () => {
-  game.toggleSpeed();
+speedGroup.addEventListener('click', (ev) => {
+  const btn = (ev.target as HTMLElement).closest<HTMLButtonElement>('button[data-speed]');
+  if (!btn || btn.disabled) return;
+  game.audio.unlock();
+  game.setSpeed(Number(btn.dataset.speed) as GameSpeed);
+  game.audio.play('place');
+  syncOverlay();
   updateStats();
 });
 
@@ -384,11 +415,11 @@ btnHow.addEventListener('click', () => {
 });
 
 btnPause.addEventListener('click', () => {
-  if (game.phase === 'playing' || game.phase === 'paused') {
-    game.togglePause();
-    btnPause.textContent = game.phase === 'paused' ? '继续' : '暂停';
-    syncOverlay();
-  }
+  if (game.phase !== 'playing' && game.phase !== 'paused') return;
+  game.audio.unlock();
+  game.togglePause();
+  syncOverlay();
+  updateStats();
 });
 
 btnSell.addEventListener('click', () => {
@@ -423,6 +454,12 @@ canvas.addEventListener('pointermove', (ev) => {
 canvas.addEventListener('pointerleave', () => game.pointerLeave());
 
 canvas.addEventListener('pointerdown', (ev) => {
+  if (game.phase === 'paused') {
+    game.togglePause();
+    syncOverlay();
+    updateStats();
+    return;
+  }
   if (game.phase !== 'playing') return;
   game.audio.unlock();
   const { x, y } = canvasPos(ev);
@@ -440,14 +477,14 @@ window.addEventListener('keydown', (ev) => {
     updateStats();
   }
   if ((ev.key === 'f' || ev.key === 'F') && game.phase === 'playing') {
-    game.toggleSpeed();
+    game.cycleSpeed();
     updateStats();
   }
   if (ev.key === 'p' || ev.key === 'P') {
     if (game.phase === 'playing' || game.phase === 'paused') {
       game.togglePause();
-      btnPause.textContent = game.phase === 'paused' ? '继续' : '暂停';
       syncOverlay();
+      updateStats();
     }
   }
   if (ev.key === 'Escape') {
@@ -468,11 +505,29 @@ let prevFacts = 0;
 let prevEnergy = -1;
 let prevAchievements = 0;
 
+/**
+ * Simulation advances in fixed slices rather than one scaled step: at 10× a
+ * single 0.17s step would let projectiles jump straight past their targets.
+ * The step budget is capped so a stalled tab cannot snowball into a freeze.
+ */
+const SIM_STEP = 1 / 60;
+const MAX_STEPS_PER_FRAME = 16;
+
+function advanceSimulation(elapsed: number): void {
+  let budget = elapsed * game.gameSpeed;
+  for (let i = 0; i < MAX_STEPS_PER_FRAME && budget > 0; i++) {
+    const step = Math.min(SIM_STEP, budget);
+    game.update(step);
+    budget -= step;
+    if (game.phase !== 'playing') break;
+  }
+}
+
 function frame(now: number): void {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
-  game.update(dt * game.gameSpeed);
-  renderer.draw(game, dt * game.gameSpeed);
+  advanceSimulation(dt);
+  renderer.draw(game, game.phase === 'playing' ? dt * game.gameSpeed : 0);
 
   for (const toast of game.drainToasts()) {
     showToast(toast.badge, toast.name, toast.desc, toast.reward);

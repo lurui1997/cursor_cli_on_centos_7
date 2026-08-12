@@ -210,6 +210,10 @@ export interface Banner {
 
 export type GamePhase = 'title' | 'playing' | 'paused' | 'won' | 'lost';
 
+export type GameSpeed = 1 | 2 | 5 | 10;
+
+export const GAME_SPEEDS: GameSpeed[] = [1, 2, 5, 10];
+
 export interface GameStats {
   wave: number;
   energy: number;

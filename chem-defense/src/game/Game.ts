@@ -11,11 +11,13 @@ import {
   setActivePath,
   worldToGrid,
 } from './path';
+import { GAME_SPEEDS } from './types';
 import type {
   AchievementToast,
   Banner,
   DamageTag,
   ElementId,
+  GameSpeed,
   EnemyInstance,
   EnemyKind,
   FloatingText,
@@ -60,7 +62,7 @@ export class Game {
   phase: GamePhase = 'title';
   selectedLevel: LevelDef = LEVELS[0];
   stats: GameStats = Game.freshStats(LEVELS[0]);
-  gameSpeed: 1 | 2 = 1;
+  gameSpeed: GameSpeed = 1;
 
   selectedElement: ElementId | null = 'H';
   hoveredCell: { gx: number; gy: number } | null = null;
@@ -154,13 +156,24 @@ export class Game {
     return this.phase === 'playing' && this.awaitingNextWave;
   }
 
-  toggleSpeed(): void {
-    this.gameSpeed = this.gameSpeed === 1 ? 2 : 1;
+  setSpeed(speed: GameSpeed): void {
+    this.gameSpeed = speed;
+    if (this.phase === 'paused') this.phase = 'playing';
+  }
+
+  /** Steps through 1× → 2× → 5× → 10× → 1× for the keyboard shortcut. */
+  cycleSpeed(): void {
+    const next = GAME_SPEEDS[(GAME_SPEEDS.indexOf(this.gameSpeed) + 1) % GAME_SPEEDS.length];
+    this.setSpeed(next);
   }
 
   togglePause(): void {
     if (this.phase === 'playing') this.phase = 'paused';
     else if (this.phase === 'paused') this.phase = 'playing';
+  }
+
+  isPaused(): boolean {
+    return this.phase === 'paused';
   }
 
   selectElement(id: ElementId): void {
