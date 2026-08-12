@@ -148,7 +148,7 @@ function renderLevelSelect(): void {
     const stars = levelProgress[level.id] ?? 0;
     return `
       <button class="level-card ${selected ? 'selected' : ''} ${unlocked ? '' : 'locked'}"
-        data-level="${level.id}" type="button" ${unlocked ? '' : 'disabled'}>
+        data-level="${level.id}" type="button" style="--level-accent:${level.accent}" ${unlocked ? '' : 'disabled'}>
         <span class="level-number">${unlocked ? `0${level.number}` : '锁'}</span>
         <span class="level-copy">
           <strong>${level.name}</strong>
@@ -252,6 +252,7 @@ function updateStats(): void {
   btnWave.classList.toggle('ready', waveReady);
   btnWave.textContent =
     game.stats.wave === 0 ? '开始第 1 波' : `开始第 ${game.stats.wave + 1} 波`;
+  btnWave.title = `下一波：${game.nextWavePreview()}`;
   btnSpeed.textContent = `${game.gameSpeed}×`;
   const tower = game.getSelectedTower();
   btnUpgrade.disabled = !tower || tower.level >= 3 || game.phase !== 'playing';

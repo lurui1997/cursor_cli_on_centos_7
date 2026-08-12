@@ -138,6 +138,7 @@ export class Game {
     if (!level || this.phase !== 'title') return;
     this.selectedLevel = level;
     setActivePath(level.path);
+    this.stats = Game.freshStats(level);
   }
 
   showTitle(): void {
@@ -937,6 +938,14 @@ export class Game {
     if (this.phase === 'title') return '';
     if (this.awaitingNextWave) return this.stats.wave === 0 ? '备战' : '待开波';
     return `波次 ${this.stats.wave} / ${this.selectedLevel.waves.length}`;
+  }
+
+  nextWavePreview(): string {
+    const wave = this.selectedLevel.waves[this.stats.wave];
+    if (!wave) return '最终波已完成';
+    return wave.entries
+      .map((entry) => `${ENEMIES[entry.kind].formula} ×${entry.count}`)
+      .join(' · ');
   }
 
   getReactionFlash(): number {

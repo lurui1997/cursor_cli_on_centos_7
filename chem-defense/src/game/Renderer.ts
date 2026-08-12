@@ -89,6 +89,7 @@ export class Renderer {
   private drawPath(game: Game): void {
     const ctx = this.ctx;
     const path = game.getPath();
+    const accent = game.selectedLevel.accent;
     const trace = () => {
       ctx.beginPath();
       path.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
@@ -98,14 +99,14 @@ export class Renderer {
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
 
-    ctx.strokeStyle = 'rgba(13, 78, 78, 0.75)';
+    ctx.strokeStyle = hexAlpha(accent, 0.28);
     ctx.lineWidth = 40;
     trace();
     ctx.stroke();
 
     ctx.setLineDash([12, 18]);
     ctx.lineDashOffset = -this.t * 46;
-    ctx.strokeStyle = 'rgba(94, 234, 212, 0.3)';
+    ctx.strokeStyle = hexAlpha(accent, 0.65);
     ctx.lineWidth = 2;
     trace();
     ctx.stroke();
