@@ -1,7 +1,11 @@
+import { AudioEngine } from './audio';
+import { ACHIEVEMENTS } from './data/achievements';
 import { COMPOUNDS, ELEMENTS, findCompound } from './data/elements';
 import { ENEMIES, scaledEnemyHp, scaledEnemySpeed, WAVES } from './data/enemies';
 import { gridToWorld, isPathCell, PATH, positionOnPath, worldToGrid } from './path';
 import type {
+  AchievementToast,
+  Banner,
   DamageTag,
   ElementId,
   EnemyInstance,
@@ -9,11 +13,15 @@ import type {
   FloatingText,
   GamePhase,
   GameStats,
+  ImpactRing,
   ParticleInstance,
   ProjectileInstance,
   StatusEffect,
   TowerInstance,
 } from './types';
+
+/** Kills within this window keep a combo chain alive. */
+const COMBO_WINDOW = 2.4;
 
 let nextId = 1;
 function uid(): number {
@@ -38,15 +46,10 @@ export class Game {
   readonly width = 960;
   readonly height = 540;
 
+  readonly audio = new AudioEngine();
+
   phase: GamePhase = 'title';
-  stats: GameStats = {
-    wave: 0,
-    energy: 150,
-    lives: 16,
-    score: 0,
-    factsUnlocked: [],
-    lastReaction: null,
-  };
+  stats: GameStats = Game.freshStats();
 
   selectedElement: ElementId | null = 'H';
   hoveredCell: { gx: number; gy: number } | null = null;
@@ -57,32 +60,60 @@ export class Game {
   projectiles: ProjectileInstance[] = [];
   particles: ParticleInstance[] = [];
   floaters: FloatingText[] = [];
+  rings: ImpactRing[] = [];
+  banner: Banner | null = null;
+  /** Drained by the UI layer so achievements can be shown as DOM toasts. */
+  pendingToasts: AchievementToast[] = [];
 
   private spawnQueue: Array<{ at: number; kind: keyof typeof ENEMIES }> = [];
   private waveTime = 0;
   private betweenWaves = 0;
   private awaitingNextWave = false;
   private reactionFlash = 0;
+  private comboTimer = 0;
+  private shake = 0;
+  private leaksThisWave = 0;
+  private hitFlashById = new Map<number, number>();
+  private seenFacts = new Set<string>();
 
-  start(): void {
-    this.phase = 'playing';
-    this.stats = {
+  private static freshStats(): GameStats {
+    return {
       wave: 0,
       energy: 150,
       lives: 16,
       score: 0,
       factsUnlocked: [],
       lastReaction: null,
+      combo: 0,
+      maxCombo: 0,
+      kills: 0,
+      leaks: 0,
+      compoundsBuilt: [],
+      achievements: [],
+      factsSeen: 0,
     };
+  }
+
+  start(): void {
+    this.phase = 'playing';
+    this.stats = Game.freshStats();
     this.towers = [];
     this.enemies = [];
     this.projectiles = [];
     this.particles = [];
     this.floaters = [];
+    this.rings = [];
+    this.banner = null;
+    this.pendingToasts = [];
     this.spawnQueue = [];
     this.waveTime = 0;
     this.betweenWaves = 0;
     this.awaitingNextWave = true;
+    this.comboTimer = 0;
+    this.shake = 0;
+    this.leaksThisWave = 0;
+    this.hitFlashById.clear();
+    this.seenFacts.clear();
     this.selectedElement = 'H';
     this.unlockFact('欢迎来到元素防线：用真实化学反应守护实验室。');
   }
@@ -110,7 +141,8 @@ export class Game {
     const cell = worldToGrid(x, y);
     if (!cell) return;
     if (isPathCell(cell.gx, cell.gy)) {
-      this.pushFloater(x, y, '路径上无法放置', '#fca5a5');
+      this.pushFloater(x, y, '管道上无法放置', '#fca5a5');
+      this.audio.play('deny');
       return;
     }
 
@@ -128,7 +160,8 @@ export class Game {
     if (!this.selectedElement) return;
     const def = ELEMENTS[this.selectedElement];
     if (this.stats.energy < def.cost) {
-      this.pushFloater(x, y, '能量不足', '#fcd34d');
+      this.pushFloater(x, y, `还差 ${def.cost - this.stats.energy} 能量`, '#fcd34d');
+      this.audio.play('deny');
       return;
     }
 
@@ -140,11 +173,17 @@ export class Game {
       elementId: this.selectedElement,
       cooldown: 0.2,
       angle: 0,
+      recoil: 0,
+      age: 0,
     };
     this.towers.push(tower);
     this.selectedTowerId = tower.id;
     this.unlockFact(def.fact);
-    this.spawnBurst(gridToWorld(cell.gx, cell.gy).x, gridToWorld(cell.gx, cell.gy).y, def.glow, 10);
+
+    const pos = gridToWorld(cell.gx, cell.gy);
+    this.spawnBurst(pos.x, pos.y, def.glow, 8);
+    this.pushRing(pos.x, pos.y, 34, def.glow, 0.35, 2);
+    this.audio.play('place');
     this.trySynthesize(tower);
   }
 
@@ -164,6 +203,8 @@ export class Game {
     this.stats.energy += refund;
     const pos = gridToWorld(tower.gridX, tower.gridY);
     this.pushFloater(pos.x, pos.y, `+${refund} 能量`, '#5eead4');
+    this.pushRing(pos.x, pos.y, 30, '#5eead4', 0.3, 2);
+    this.audio.play('sell');
     this.towers.splice(idx, 1);
     this.selectedTowerId = null;
   }
@@ -190,9 +231,21 @@ export class Game {
       this.stats.lastReaction = compound.equation;
       this.reactionFlash = 2.4;
       this.unlockFact(compound.fact);
-      this.pushFloater(pos.x, pos.y - 20, `合成 ${compound.formula}！`, compound.glow);
-      this.spawnBurst(pos.x, pos.y, compound.glow, 22);
-      this.spawnTextParticle(pos.x, pos.y - 36, compound.equation, compound.color);
+
+      if (!this.stats.compoundsBuilt.includes(compound.id)) {
+        this.stats.compoundsBuilt.push(compound.id);
+      }
+
+      this.pushFloater(pos.x, pos.y - 22, `合成 ${compound.formula}`, compound.glow, 1.5);
+      this.spawnBurst(pos.x, pos.y, compound.glow, 18);
+      this.spawnTextParticle(pos.x, pos.y - 40, compound.equation, compound.color);
+      this.pushRing(pos.x, pos.y, 70, compound.glow, 0.55, 3);
+      this.pushRing(pos.x, pos.y, 46, '#ffffff', 0.35, 2);
+      this.addShake(5);
+      this.audio.play('synth');
+      this.showBanner(`${compound.formula} · ${compound.name}`, compound.equation, compound.glow);
+
+      this.checkAchievements();
       break;
     }
   }
@@ -201,7 +254,13 @@ export class Game {
     if (this.phase !== 'playing') return;
 
     this.reactionFlash = Math.max(0, this.reactionFlash - dt);
+    this.shake = Math.max(0, this.shake - dt * 26);
     this.waveTime += dt;
+
+    if (this.stats.combo > 0) {
+      this.comboTimer -= dt;
+      if (this.comboTimer <= 0) this.stats.combo = 0;
+    }
 
     if (this.awaitingNextWave) {
       this.betweenWaves += dt;
@@ -220,6 +279,9 @@ export class Game {
     this.updateProjectiles(dt);
     this.updateParticles(dt);
     this.updateFloaters(dt);
+    this.updateRings(dt);
+    this.updateBanner(dt);
+    this.decayHitFlashes(dt);
 
     if (
       !this.awaitingNextWave &&
@@ -229,17 +291,40 @@ export class Game {
       if (this.stats.wave >= WAVES.length) {
         this.phase = 'won';
         this.unlockFact('你用元素周期表的智慧守住了实验室。化学，既是武器也是诗。');
+        this.audio.play('victory');
       } else {
-        this.awaitingNextWave = true;
-        this.betweenWaves = 0;
-        this.stats.energy += 25 + this.stats.wave * 5;
-        this.pushFloater(this.width / 2, 80, '波次清理完毕 · 能量补给', '#5eead4');
+        this.completeWave();
       }
     }
 
     if (this.stats.lives <= 0) {
       this.phase = 'lost';
+      this.audio.play('defeat');
     }
+
+    this.checkAchievements();
+  }
+
+  private completeWave(): void {
+    this.awaitingNextWave = true;
+    this.betweenWaves = 0;
+
+    const bonus = 25 + this.stats.wave * 5;
+    const flawless = this.leaksThisWave === 0;
+    const total = flawless ? bonus + 40 : bonus;
+    this.stats.energy += total;
+    this.stats.score += flawless ? 120 : 60;
+
+    this.showBanner(
+      flawless ? `第 ${this.stats.wave} 波 · 零泄漏` : `第 ${this.stats.wave} 波清空`,
+      `+${total} 能量${flawless ? ' · 完美防守奖励' : ''}`,
+      flawless ? '#fde68a' : '#5eead4',
+    );
+    this.pushFloater(this.width / 2, 100, `+${total} 能量`, '#5eead4', 1.3);
+    this.audio.play('wave');
+
+    if (flawless) this.grantAchievement('flawlessWave');
+    this.leaksThisWave = 0;
   }
 
   private beginNextWave(): void {
@@ -264,11 +349,14 @@ export class Game {
       }
     }
     this.spawnQueue.sort((a, b) => a.at - b.at);
-    this.pushFloater(this.width / 2, 64, `第 ${this.stats.wave} 波反应开始`, '#fde68a');
-    if (adaptNote) {
-      this.unlockFact(adaptNote);
-      this.pushFloater(this.width / 2, 96, 'AI 导演调整了反应物', '#fbbf24');
-    }
+    this.leaksThisWave = 0;
+    this.showBanner(
+      `第 ${this.stats.wave} 波 / ${WAVES.length}`,
+      adaptNote ? 'AI 导演调整了反应物配比' : '反应开始',
+      adaptNote ? '#fbbf24' : '#fde68a',
+    );
+    this.audio.play('wave', 1.12);
+    if (adaptNote) this.unlockFact(adaptNote);
   }
 
   /** Lightweight director: bias spawns toward chemistries that challenge the player's current kit. */
@@ -366,7 +454,13 @@ export class Game {
       if (along.done) {
         enemy.alive = false;
         this.stats.lives -= enemy.kind === 'isotope' ? 3 : 1;
-        this.pushFloater(enemy.x, enemy.y, '突破防线！', '#fb7185');
+        this.stats.leaks += 1;
+        this.leaksThisWave += 1;
+        this.stats.combo = 0;
+        this.pushFloater(this.width - 90, this.height / 2, '突破防线', '#fb7185', 1.3);
+        this.pushRing(enemy.x, enemy.y, 60, '#fb7185', 0.45, 3);
+        this.addShake(8);
+        this.audio.play('leak');
       }
     }
     this.enemies = this.enemies.filter((e) => e.alive || e.hp > -999);
@@ -376,6 +470,8 @@ export class Game {
   private updateTowers(dt: number): void {
     for (const tower of this.towers) {
       tower.cooldown = Math.max(0, tower.cooldown - dt);
+      tower.recoil = Math.max(0, tower.recoil - dt * 5);
+      tower.age += dt;
       const combat = this.towerCombatStats(tower);
       if (!combat) continue;
 
@@ -394,6 +490,7 @@ export class Game {
       if (tower.cooldown > 0) continue;
 
       tower.cooldown = 1 / combat.fireRate;
+      tower.recoil = 1;
       this.fireProjectile(best, combat);
     }
   }
@@ -498,15 +595,21 @@ export class Game {
   }
 
   private hitEnemy(enemy: EnemyInstance, projectile: ProjectileInstance): void {
+    let anyCrit = false;
+
     const apply = (e: EnemyInstance, falloff: number) => {
       const mul = damageMultiplier(projectile.tags, e) * falloff;
       const dmg = projectile.damage * mul;
+      const crit = mul > 1.2;
+      anyCrit ||= crit;
       e.hp -= dmg;
+      this.hitFlashById.set(e.id, 0.16);
       this.pushFloater(
         e.x,
         e.y - 10,
-        mul > 1.2 ? `克制 ${Math.round(dmg)}` : `${Math.round(dmg)}`,
-        mul > 1.2 ? '#4ade80' : '#e2e8f0',
+        crit ? `克制 ${Math.round(dmg)}` : `${Math.round(dmg)}`,
+        crit ? '#4ade80' : '#e2e8f0',
+        crit ? 1.25 : 1,
       );
       if (projectile.status) {
         e.statuses.push({
@@ -519,17 +622,20 @@ export class Game {
     };
 
     apply(enemy, 1);
-    this.spawnBurst(enemy.x, enemy.y, projectile.color, 8);
+    this.spawnBurst(enemy.x, enemy.y, projectile.color, 5);
+    this.pushRing(enemy.x, enemy.y, anyCrit ? 30 : 20, projectile.color, 0.24, anyCrit ? 2.5 : 1.5);
     if (projectile.equation) {
       this.spawnTextParticle(enemy.x, enemy.y - 24, projectile.equation, projectile.color);
     }
+    this.audio.play(anyCrit ? 'crit' : 'hit');
 
     if (projectile.splash > 0) {
+      this.pushRing(enemy.x, enemy.y, projectile.splash, projectile.color, 0.3, 1.5);
       for (const other of this.enemies) {
         if (!other.alive || other.id === enemy.id) continue;
         const d = dist(other.x, other.y, enemy.x, enemy.y);
         if (d <= projectile.splash) {
-          apply(other, 1 - d / projectile.splash * 0.55);
+          apply(other, 1 - (d / projectile.splash) * 0.55);
         }
       }
     }
@@ -539,12 +645,90 @@ export class Game {
     if (!enemy.alive) return;
     enemy.alive = false;
     const def = ENEMIES[enemy.kind];
+    const isBoss = enemy.kind === 'isotope';
+
     if (reward) {
-      this.stats.energy += def.reward;
-      this.stats.score += def.reward * 2;
+      this.stats.kills += 1;
+      this.stats.combo += 1;
+      this.stats.maxCombo = Math.max(this.stats.maxCombo, this.stats.combo);
+      this.comboTimer = COMBO_WINDOW;
+
+      const multiplier = this.comboMultiplier();
+      const energy = Math.round(def.reward * multiplier);
+      this.stats.energy += energy;
+      this.stats.score += Math.round(def.reward * 2 * multiplier);
       this.unlockFact(def.fact);
+
+      this.pushFloater(enemy.x, enemy.y - 26, `+${energy}`, '#5eead4');
+      if (this.stats.combo >= 3) {
+        this.pushFloater(
+          enemy.x,
+          enemy.y - 42,
+          `${this.stats.combo} 连击 ×${multiplier.toFixed(1)}`,
+          '#fde68a',
+          1.1,
+        );
+      }
     }
-    this.spawnBurst(enemy.x, enemy.y, def.color, 16);
+
+    this.spawnBurst(enemy.x, enemy.y, def.color, isBoss ? 34 : 12);
+    this.pushRing(enemy.x, enemy.y, isBoss ? 140 : 44, def.color, isBoss ? 0.7 : 0.32, isBoss ? 4 : 2);
+
+    if (isBoss) {
+      this.addShake(14);
+      this.audio.play('boss');
+      this.showBanner('首领衰变完成', '不稳定核素已被压制', '#f97316');
+      this.grantAchievement('bossDown');
+    } else {
+      this.audio.play('kill', 1 + Math.min(this.stats.combo, 12) * 0.04);
+    }
+  }
+
+  /** Combo pays out up to +100% energy and score, ramping every kill. */
+  comboMultiplier(): number {
+    return Math.min(2, 1 + Math.max(0, this.stats.combo - 1) * 0.05);
+  }
+
+  comboTimeRatio(): number {
+    return this.stats.combo > 0 ? Math.max(0, this.comboTimer / COMBO_WINDOW) : 0;
+  }
+
+  private checkAchievements(): void {
+    if (this.stats.compoundsBuilt.length >= 1) this.grantAchievement('firstSynthesis');
+    if (this.stats.compoundsBuilt.length >= 6) this.grantAchievement('allCompounds');
+    if (this.stats.maxCombo >= 10) this.grantAchievement('combo10');
+    if (this.stats.maxCombo >= 25) this.grantAchievement('combo25');
+    if (this.stats.factsSeen >= 12) this.grantAchievement('scholar');
+    if (this.stats.energy >= 400) this.grantAchievement('stockpile');
+  }
+
+  private grantAchievement(id: string): void {
+    if (this.stats.achievements.includes(id)) return;
+    const def = ACHIEVEMENTS.find((a) => a.id === id);
+    if (!def) return;
+
+    this.stats.achievements.push(id);
+    this.stats.energy += def.reward;
+    this.stats.score += def.reward * 3;
+    this.pendingToasts.push({
+      id: def.id,
+      badge: def.badge,
+      name: def.name,
+      desc: def.desc,
+      reward: def.reward,
+    });
+    this.audio.play('achievement');
+    this.addShake(4);
+  }
+
+  totalAchievements(): number {
+    return ACHIEVEMENTS.length;
+  }
+
+  drainToasts(): AchievementToast[] {
+    const out = this.pendingToasts;
+    this.pendingToasts = [];
+    return out;
   }
 
   private spawnBurst(x: number, y: number, color: string, n: number): void {
@@ -578,7 +762,7 @@ export class Game {
     });
   }
 
-  private pushFloater(x: number, y: number, text: string, color: string): void {
+  private pushFloater(x: number, y: number, text: string, color: string, scale = 1): void {
     this.floaters.push({
       x,
       y,
@@ -586,7 +770,58 @@ export class Game {
       color,
       life: 1.2,
       maxLife: 1.2,
+      scale,
     });
+  }
+
+  private pushRing(
+    x: number,
+    y: number,
+    maxRadius: number,
+    color: string,
+    life: number,
+    width: number,
+  ): void {
+    this.rings.push({ x, y, radius: 0, maxRadius, life, maxLife: life, color, width });
+  }
+
+  private addShake(amount: number): void {
+    this.shake = Math.min(16, this.shake + amount);
+  }
+
+  private showBanner(title: string, subtitle: string, color: string): void {
+    this.banner = { title, subtitle, color, life: 2.2, maxLife: 2.2 };
+  }
+
+  private updateRings(dt: number): void {
+    for (const ring of this.rings) {
+      ring.life -= dt;
+      const progress = 1 - Math.max(0, ring.life) / ring.maxLife;
+      ring.radius = ring.maxRadius * (1 - Math.pow(1 - progress, 3));
+    }
+    this.rings = this.rings.filter((r) => r.life > 0);
+  }
+
+  private updateBanner(dt: number): void {
+    if (!this.banner) return;
+    this.banner.life -= dt;
+    if (this.banner.life <= 0) this.banner = null;
+  }
+
+  private decayHitFlashes(dt: number): void {
+    for (const [id, remaining] of this.hitFlashById) {
+      const next = remaining - dt;
+      if (next <= 0) this.hitFlashById.delete(id);
+      else this.hitFlashById.set(id, next);
+    }
+  }
+
+  hitFlashFor(enemyId: number): number {
+    return this.hitFlashById.get(enemyId) ?? 0;
+  }
+
+  getShake(): number {
+    return this.shake;
   }
 
   private updateParticles(dt: number): void {
@@ -609,7 +844,9 @@ export class Game {
   }
 
   unlockFact(fact: string): void {
-    if (this.stats.factsUnlocked.includes(fact)) return;
+    if (this.seenFacts.has(fact)) return;
+    this.seenFacts.add(fact);
+    this.stats.factsSeen = this.seenFacts.size;
     this.stats.factsUnlocked.unshift(fact);
     if (this.stats.factsUnlocked.length > 8) this.stats.factsUnlocked.pop();
   }

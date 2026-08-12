@@ -95,6 +95,10 @@ export interface TowerInstance {
   compoundId?: string;
   cooldown: number;
   angle: number;
+  /** 0..1 muzzle kick that decays after each shot. */
+  recoil: number;
+  /** Seconds since placement, used for the pop-in animation. */
+  age: number;
 }
 
 export interface EnemyInstance {
@@ -146,6 +150,44 @@ export interface FloatingText {
   color: string;
   life: number;
   maxLife: number;
+  scale: number;
+}
+
+/** Expanding outline used for hit, kill and synthesis feedback. */
+export interface ImpactRing {
+  x: number;
+  y: number;
+  radius: number;
+  maxRadius: number;
+  life: number;
+  maxLife: number;
+  color: string;
+  width: number;
+}
+
+export interface AchievementDef {
+  id: string;
+  badge: string;
+  name: string;
+  desc: string;
+  reward: number;
+}
+
+export interface AchievementToast {
+  id: string;
+  badge: string;
+  name: string;
+  desc: string;
+  reward: number;
+}
+
+/** Full-width celebratory banner shown on wave clear and milestones. */
+export interface Banner {
+  title: string;
+  subtitle: string;
+  color: string;
+  life: number;
+  maxLife: number;
 }
 
 export type GamePhase = 'title' | 'playing' | 'paused' | 'won' | 'lost';
@@ -157,4 +199,11 @@ export interface GameStats {
   score: number;
   factsUnlocked: string[];
   lastReaction: string | null;
+  combo: number;
+  maxCombo: number;
+  kills: number;
+  leaks: number;
+  compoundsBuilt: string[];
+  achievements: string[];
+  factsSeen: number;
 }
