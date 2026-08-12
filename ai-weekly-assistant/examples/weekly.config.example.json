@@ -1,0 +1,236 @@
+{
+  "version": 1,
+  "workspaceName": "示例产品组",
+  "period": {
+    "start": "2026-08-04",
+    "end": "2026-08-10"
+  },
+  "goals": [
+    {
+      "id": "goal-delivery",
+      "title": "周报助手 MVP 交付",
+      "description": "完成可运行的目标设定、授权采集与周报输出闭环。",
+      "successCriteria": [
+        "支持本地 Git / 浏览器历史与云端腾讯系数据源授权开关",
+        "输出 Markdown 与 HTML，且包含成果/价值/风险/下一步"
+      ],
+      "priority": 1,
+      "owner": "张三"
+    },
+    {
+      "id": "goal-quality",
+      "title": "周报质量防劣化",
+      "description": "避免流水账、模糊计划与指标口径分裂。",
+      "successCriteria": [
+        "质量检查能识别笼统下一步与缺失风险",
+        "跨材料指标按统一口径汇总"
+      ],
+      "priority": 2,
+      "owner": "李四"
+    }
+  ],
+  "standards": {
+    "requireOutcomeAndValue": true,
+    "requireRisks": true,
+    "requireActionableNextSteps": true,
+    "requireUnifiedMetrics": true,
+    "minOutcomeItems": 3,
+    "forbiddenPatterns": [
+      "今天做了",
+      "处理了一些",
+      "跟进一下",
+      "开会讨论",
+      "日常维护"
+    ],
+    "sections": [
+      "本周目标对齐",
+      "采集材料摘要",
+      "成果与价值",
+      "风险与阻塞",
+      "统一口径数据",
+      "分析结论",
+      "下一步计划"
+    ],
+    "language": "zh-CN"
+  },
+  "metrics": [
+    {
+      "key": "pr_merged",
+      "displayName": "合并 PR 数",
+      "unit": "个",
+      "definition": "本周期内合并到主分支的 Pull Request 数量（不含 revert 自身的 merge）。",
+      "aliases": ["merged_prs", "PR合并数", "合并请求数"]
+    },
+    {
+      "key": "commits",
+      "displayName": "有效提交数",
+      "unit": "次",
+      "definition": "本周期内作者提交且非 merge 的 commit 数量。",
+      "aliases": ["commit_count", "提交次数"]
+    },
+    {
+      "key": "meeting_hours",
+      "displayName": "会议时长",
+      "unit": "小时",
+      "definition": "已授权会议记录中的有效会议总时长（分钟汇总后换算小时，保留 1 位小数）。",
+      "aliases": ["会议小时", "meeting_duration_hours"]
+    },
+    {
+      "key": "docs_updated",
+      "displayName": "文档更新数",
+      "unit": "份",
+      "definition": "云文档/企微文件中本周期有实质内容变更的文档份数。",
+      "aliases": ["文档数", "file_updates", "文档更新数"]
+    }
+  ],
+  "sources": [
+    {
+      "id": "src-git",
+      "kind": "git",
+      "scope": "local",
+      "displayName": "本地 Git 仓库",
+      "enabled": true,
+      "auth": {
+        "authorized": true,
+        "authorizedAt": "2026-08-10T08:00:00.000Z",
+        "authorizedBy": "demo",
+        "scopeNote": "仅读取本仓库 commit 元数据"
+      },
+      "options": {
+        "repoPath": "..",
+        "authorEmail": ""
+      }
+    },
+    {
+      "id": "src-browser",
+      "kind": "browser_history",
+      "scope": "local",
+      "displayName": "浏览器历史",
+      "enabled": true,
+      "auth": {
+        "authorized": true,
+        "authorizedAt": "2026-08-10T08:00:00.000Z",
+        "authorizedBy": "demo",
+        "scopeNote": "仅读取导出的 JSON 历史"
+      },
+      "options": {
+        "historyFile": "./examples/browser-history.sample.json",
+        "domains": ["github.com", "tencent.com"]
+      }
+    },
+    {
+      "id": "src-cos",
+      "kind": "tencent_cos",
+      "scope": "remote",
+      "displayName": "腾讯云文件 (COS)",
+      "enabled": true,
+      "auth": {
+        "authorized": true,
+        "authorizedAt": "2026-08-10T08:00:00.000Z",
+        "authorizedBy": "demo"
+      },
+      "options": {
+        "bucket": "demo-bucket",
+        "region": "ap-guangzhou",
+        "prefix": "weekly/",
+        "mockObjects": [
+          {
+            "key": "weekly/architecture.md",
+            "title": "架构说明草案",
+            "lastModified": "2026-08-08T03:00:00Z",
+            "size": 4096
+          }
+        ]
+      }
+    },
+    {
+      "id": "src-wecom",
+      "kind": "wecom_file",
+      "scope": "remote",
+      "displayName": "企业微信文件",
+      "enabled": true,
+      "auth": {
+        "authorized": true,
+        "authorizedAt": "2026-08-10T08:00:00.000Z",
+        "authorizedBy": "demo"
+      },
+      "options": {
+        "corpId": "ww_demo",
+        "agentId": "1000001",
+        "folderId": "folder-1",
+        "mockFiles": [
+          {
+            "fileId": "f-200",
+            "name": "验收口径对齐表",
+            "updatedAt": "2026-08-09T06:00:00Z",
+            "author": "产品"
+          }
+        ]
+      }
+    },
+    {
+      "id": "src-meeting",
+      "kind": "tencent_meeting",
+      "scope": "remote",
+      "displayName": "腾讯会议",
+      "enabled": true,
+      "auth": {
+        "authorized": true,
+        "authorizedAt": "2026-08-10T08:00:00.000Z",
+        "authorizedBy": "demo"
+      },
+      "options": {
+        "userid": "user_demo",
+        "includeTranscript": true,
+        "mockMeetings": [
+          {
+            "meetingId": "tm-88",
+            "subject": "周报口径评审",
+            "startTime": "2026-08-07T02:00:00Z",
+            "durationMinutes": 50,
+            "participants": 5,
+            "decisions": ["指标别名必须映射到标准 key", "下一步必须含 DoD"],
+            "risks": ["若远程 API 凭证过期将导致采集中断"]
+          }
+        ]
+      }
+    },
+    {
+      "id": "src-custom",
+      "kind": "custom",
+      "scope": "custom",
+      "displayName": "用户自定义输入",
+      "enabled": true,
+      "auth": {
+        "authorized": true,
+        "authorizedAt": "2026-08-10T08:00:00.000Z",
+        "authorizedBy": "demo"
+      },
+      "options": {
+        "notes": [
+          "今天做了接口联调"
+        ],
+        "structuredNotes": [
+          {
+            "title": "周报质量规则落地",
+            "action": "实现流水账检测与统一指标别名映射",
+            "outcome": "质量引擎可拦截笼统下一步与未登记指标",
+            "value": "提升周报可信度，减少主管返工追问",
+            "risks": ["规则过严可能导致误报，需要白名单"],
+            "occurredAt": "2026-08-09T12:00:00Z"
+          }
+        ]
+      }
+    }
+  ],
+  "output": {
+    "format": "both",
+    "directory": "./output",
+    "titleTemplate": "{{workspace}} 周报 {{start}} ~ {{end}}"
+  },
+  "schedule": {
+    "mode": "manual",
+    "hourlyEnabled": false,
+    "timezone": "Asia/Shanghai"
+  }
+}
