@@ -434,6 +434,15 @@ canvas.addEventListener('pointerdown', (ev) => {
 });
 
 window.addEventListener('keydown', (ev) => {
+  if (ev.code === 'Space' && game.isWaveReady()) {
+    ev.preventDefault();
+    game.launchWave();
+    updateStats();
+  }
+  if ((ev.key === 'f' || ev.key === 'F') && game.phase === 'playing') {
+    game.toggleSpeed();
+    updateStats();
+  }
   if (ev.key === 'p' || ev.key === 'P') {
     if (game.phase === 'playing' || game.phase === 'paused') {
       game.togglePause();
