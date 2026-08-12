@@ -604,9 +604,10 @@ export class Game {
       anyCrit ||= crit;
       e.hp -= dmg;
       this.hitFlashById.set(e.id, 0.16);
+      // Scatter numbers so simultaneous hits on one enemy stay readable.
       this.pushFloater(
-        e.x,
-        e.y - 10,
+        e.x + (Math.random() - 0.5) * 26,
+        e.y - 10 - Math.random() * 10,
         crit ? `克制 ${Math.round(dmg)}` : `${Math.round(dmg)}`,
         crit ? '#4ade80' : '#e2e8f0',
         crit ? 1.25 : 1,
